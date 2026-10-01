@@ -73,7 +73,7 @@ function openTool(type){
 async function saveProduct(i){
  const name=document.getElementById('pn'+i).value.trim()||products[i][0];const price=priceNumber(document.getElementById('pp'+i).value);const category=document.getElementById('pc'+i).value;
  if(!products[i]._id){toast('Produto sem ID no banco.');return}
- const {data,error}=await db.functions.invoke('save-product',{
+ const {data,error}=await db.functions.invoke('smooth-handler',{
    body:{id:products[i]._id,name,price,description:products[i][2]||'',emoji:products[i][5]||'🛍️',image:products[i][4]||'',category},
    headers:{'x-admin-password':'1943'}
  });
