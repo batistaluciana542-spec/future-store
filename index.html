@@ -767,33 +767,53 @@ function rebuildCats(){
 
 async function loadProducts(){
 
+  const grid = document.getElementById('grid');
+
+  grid.innerHTML = `
+    <p style="color:#22d3ee;font-size:16px">
+      ⏳ Carregando produtos...
+    </p>
+  `;
+
   try{
 
-    const {data,error} =
-      await db
-        .from('products')
-        .select(
-          'id,name,price,description,emoji,image,category'
-        )
-        .order('id');
+    const { data, error } = await db
+      .from('products')
+      .select('id,name,price,description,emoji,image,category')
+      .order('id');
 
-    if(error) throw error;
+    console.log('SUPABASE DATA:', data);
+    console.log('SUPABASE ERROR:', error);
 
-    products.length=0;
+    if(error){
+      throw error;
+    }
 
-    (data||[]).forEach(r=>{
+    if(!data || data.length === 0){
 
-      const p=[
-        r.name,
+      grid.innerHTML = `
+        <p style="color:#ec4899;font-size:18px">
+          ⚠️ O Supabase respondeu, mas não encontrou nenhum produto.
+        </p>
+      `;
+
+      return;
+    }
+
+    products.length = 0;
+
+    data.forEach(r => {
+
+      const p = [
+        r.name || 'Produto',
         money(r.price),
-        r.emoji||'📦',
-        r.category||'Geral',
-        r.image||'',
-        r.description||
-        'Produto premium com design moderno.'
+        r.emoji || '📦',
+        r.category || 'Geral',
+        r.image || '',
+        r.description || 'Produto premium.'
       ];
 
-      p._id=r.id;
+      p._id = r.id;
 
       products.push(p);
 
@@ -802,13 +822,26 @@ async function loadProducts(){
     rebuildCats();
     render();
 
+    toast('✅ Produtos carregados online!');
+
   }catch(error){
 
-    console.error(error);
+    console.error('ERRO COMPLETO:', error);
 
-    toast(
-      'Erro ao carregar produtos online.'
-    );
+    grid.innerHTML = `
+      <div style="
+        padding:20px;
+        border:1px solid #ec4899;
+        border-radius:15px;
+        color:#fff;
+        background:#ec489915;
+      ">
+        <h3>❌ Erro ao carregar produtos</h3>
+        <p style="color:#98a0bd">
+          ${error.message || error}
+        </p>
+      </div>
+    `;
 
   }
 
