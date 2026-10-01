@@ -83,49 +83,65 @@ async function saveProduct(i){
 }
 function addCategory(){const n=document.getElementById('newCat').value.trim();if(!n)return toast('Digite uma categoria.');if(!cats.includes(n)){cats.push(n);document.getElementById('chips').innerHTML=cats.map(c=>`<button class="chip ${c==='Todos'?'active':''}" onclick="setCat('${String(c).replace(/'/g,"\\'")}',this)">${c}</button>`).join('');toast('Categoria criada. Para atribuí-la, atualize a página e edite um produto.')}else toast('Essa categoria já existe.')}
 async function uploadProductImage(){
-  const i=+document.getElementById('imgProduct').value;
-  const file=document.getElementById('imgFile').files[0];
+
+  const i = +document.getElementById('imgProduct').value;
+  const file = document.getElementById('imgFile').files[0];
 
   if(!file){
     toast('Escolha uma foto primeiro.');
     return;
   }
 
-  const p=products[i];
+  const p = products[i];
 
   try{
-    const ext=file.name.split('.').pop().toLowerCase();
-    const fileName=`product-${p._id}-${Date.now()}.${ext}`;
 
-    const {error:uploadError}=await db.storage
-      .from('product-images')
-      .upload(fileName,file,{upsert:true});
+    const ext = file.name.split('.').pop().toLowerCase();
 
-    if(uploadError) throw uploadError;
+    const fileName =
+      `product-${p._id}-${Date.now()}.${ext}`;
 
-    const {data}=db.storage
-      .from('product-images')
-      .getPublicUrl(fileName);
+    // Envia a imagem para o Storage
+    const { error: uploadError } =
+      await db.storage
+        .from('product-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type
+        });
 
-    const imageUrl=data.publicUrl;
+    if(uploadError){
+      throw uploadError;
+    }
 
-    const {data:saveData,error:saveError}=await db.functions.invoke(
-      'smooth-handler',
-      {
-        body:{
-          id:p._id,
-          name:p[0],
-          price:priceNumber(p[1]),
-          description:p[5]||'',
-          emoji:p[2]||'🛍️',
-          image:imageUrl,
-          category:p[3]||''
-        },
-        headers:{
-          'x-admin-password':'1943'
+    // Cria o endereço público da imagem
+    const { data: publicData } =
+      db.storage
+        .from('product-images')
+        .getPublicUrl(fileName);
+
+    const imageUrl = publicData.publicUrl;
+
+    // Salva o endereço da imagem no produto
+    const { data: saveData, error: saveError } =
+      await db.functions.invoke(
+        'smooth-handler',
+        {
+          body:{
+            id: p._id,
+            name: p[0],
+            price: priceNumber(p[1]),
+            description: p[5] || '',
+            emoji: p[2] || '🛍️',
+            image: imageUrl,
+            category: p[3] || ''
+          },
+          headers:{
+            'x-admin-password':'1943'
+          }
         }
-      }
-    );
+      );
 
     if(saveError || saveData?.error){
       throw new Error(
@@ -135,10 +151,22 @@ async function uploadProductImage(){
       );
     }
 
-    products[i][4]=imageUrl;
+    products[i][4] = imageUrl;
+
     render();
 
     toast('📷 Foto salva online!');
+
+  }catch(error){
+
+    console.error(error);
+
+    toast(
+      'Erro ao enviar foto: ' +
+      (error.message || 'erro desconhecido')
+    );
+  }
+}
   }catch(error){
     console.error(error);
     toast('Erro ao enviar foto: '+error.message);
