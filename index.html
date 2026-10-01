@@ -1132,4 +1132,471 @@ function openTool(type){
             margin-top:10px;
             padding:12px;
             border-radius:10px;
-            border:1px solid var(--linborder:1px solid var(--lin
+            border:1px solid var(--line);
+            background:#0b0e1b;
+            color:white
+          ">
+
+        <button
+          class="primary"
+          style="margin-top:10px;width:100%"
+          onclick="uploadProductImage()">
+
+          📷 Escolher e salvar foto
+
+        </button>
+
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+
+  if(type==='categories'){
+
+    area.innerHTML=`
+
+      <div class="toolbox">
+
+        <h3>🏷️ Categorias</h3>
+
+        <p>
+          Categorias atuais:
+          ${cats.slice(1).join(', ')||'Nenhuma'}
+        </p>
+
+        <input
+          id="newCat"
+          placeholder="Nova categoria"
+          style="width:100%">
+
+        <button
+          class="primary"
+          style="margin-top:10px"
+          onclick="addCategory()">
+
+          Criar categoria
+
+        </button>
+
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+
+  if(type==='orders'){
+
+    area.innerHTML=`
+
+      <div class="toolbox">
+
+        <h3>🧾 Pedidos</h3>
+
+        <p>
+          Os pedidos são enviados para o WhatsApp.
+        </p>
+
+        <button
+          class="primary"
+          onclick="window.open(
+            'https://wa.me/5564996609321',
+            '_blank'
+          )">
+
+          Abrir WhatsApp
+
+        </button>
+
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+
+  if(type==='stats'){
+
+    area.innerHTML=`
+
+      <div class="toolbox">
+
+        <h3>📊 Estatísticas</h3>
+
+        <div class="stats">
+
+          <div>
+            <b>${products.length}</b>
+            <span>Produtos</span>
+          </div>
+
+          <div>
+            <b>${cart}</b>
+            <span>Itens nesta sessão</span>
+          </div>
+
+          <div>
+            <b>${cats.length-1}</b>
+            <span>Categorias</span>
+          </div>
+
+        </div>
+
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+
+  if(type==='appearance'){
+
+    area.innerHTML=`
+
+      <div class="toolbox">
+
+        <h3>🎨 Aparência</h3>
+
+        <p>
+          A loja utiliza tema futurista
+          com roxo, azul e ciano.
+        </p>
+
+      </div>
+
+    `;
+
+    return;
+
+  }
+
+
+  if(type==='settings'){
+
+    area.innerHTML=`
+
+      <div class="toolbox">
+
+        <h3>⚙️ Configurações</h3>
+
+        <p>
+          Banco de dados conectado ao Supabase.
+        </p>
+
+        <p>
+          Status:
+          <b style="color:#34d399">
+            ONLINE
+          </b>
+        </p>
+
+      </div>
+
+    `;
+
+  }
+
+}
+
+
+/* =========================
+   SALVAR PRODUTO
+========================= */
+
+async function saveProduct(i){
+
+  const name=
+    document.getElementById('pn'+i)
+    .value.trim();
+
+  const price=
+    priceNumber(
+      document.getElementById('pp'+i).value
+    );
+
+  const category=
+    document.getElementById('pc'+i).value;
+
+  const p=products[i];
+
+  if(!p || !p._id){
+
+    toast('Produto sem ID no banco.');
+
+    return;
+
+  }
+
+  try{
+
+    const {data,error}=
+      await db.functions.invoke(
+        'smooth-handler',
+        {
+          body:{
+            id:p._id,
+            name:name,
+            price:price,
+            description:p[5]||'',
+            emoji:p[2]||'🛍️',
+            image:p[4]||'',
+            category:category
+          },
+          headers:{
+            'x-admin-password':'1943'
+          }
+        }
+      );
+
+    if(error)
+      throw error;
+
+    if(data?.error)
+      throw new Error(data.error);
+
+    p[0]=name;
+    p[1]=money(price);
+    p[3]=category;
+
+    rebuildCats();
+    render();
+
+    toast('Produto salvo online!');
+
+  }catch(error){
+
+    console.error(error);
+
+    toast(
+      'Erro ao salvar: '+
+      (error.message||'erro desconhecido')
+    );
+
+  }
+
+}
+
+
+/* =========================
+   FOTO DO PRODUTO
+   SEM STORAGE
+========================= */
+
+async function uploadProductImage(){
+
+  const i=
+    Number(
+      document.getElementById('imgProduct').value
+    );
+
+  const file=
+    document.getElementById('imgFile')
+      .files[0];
+
+  if(!file){
+
+    toast('Escolha uma foto primeiro.');
+
+    return;
+
+  }
+
+  const p=products[i];
+
+  if(!p || !p._id){
+
+    toast('Produto sem ID.');
+
+    return;
+
+  }
+
+  try{
+
+    toast('Preparando a foto...');
+
+    const imageUrl=
+      await compressImage(file);
+
+    const {data,error}=
+      await db.functions.invoke(
+        'smooth-handler',
+        {
+          body:{
+            id:p._id,
+            name:p[0],
+            price:priceNumber(p[1]),
+            description:p[5]||'',
+            emoji:p[2]||'🛍️',
+            image:imageUrl,
+            category:p[3]||''
+          },
+          headers:{
+            'x-admin-password':'1943'
+          }
+        }
+      );
+
+    if(error)
+      throw error;
+
+    if(data?.error)
+      throw new Error(data.error);
+
+    p[4]=imageUrl;
+
+    render();
+
+    toast('📷 Foto salva online!');
+
+  }catch(error){
+
+    console.error(error);
+
+    toast(
+      'Erro ao salvar foto: '+
+      (error.message||'erro desconhecido')
+    );
+
+  }
+
+}
+
+
+/* =========================
+   COMPRIMIR FOTO
+========================= */
+
+function compressImage(file){
+
+  return new Promise((resolve,reject)=>{
+
+    const reader=
+      new FileReader();
+
+    reader.onload=function(){
+
+      const img=
+        new Image();
+
+      img.onload=function(){
+
+        const max=900;
+
+        let width=img.width;
+        let height=img.height;
+
+        if(width>max){
+
+          height=
+            Math.round(
+              height*max/width
+            );
+
+          width=max;
+
+        }
+
+        const canvas=
+          document.createElement('canvas');
+
+        canvas.width=width;
+        canvas.height=height;
+
+        const ctx=
+          canvas.getContext('2d');
+
+        ctx.drawImage(
+          img,
+          0,
+          0,
+          width,
+          height
+        );
+
+        const result=
+          canvas.toDataURL(
+            'image/jpeg',
+            0.72
+          );
+
+        resolve(result);
+
+      };
+
+      img.onerror=()=>reject(
+        new Error('Não foi possível abrir a imagem.')
+      );
+
+      img.src=reader.result;
+
+    };
+
+    reader.onerror=()=>reject(
+      new Error('Não foi possível ler a foto.')
+    );
+
+    reader.readAsDataURL(file);
+
+  });
+
+}
+
+
+/* =========================
+   CATEGORIA
+========================= */
+
+function addCategory(){
+
+  const input=
+    document.getElementById('newCat');
+
+  const value=
+    input.value.trim();
+
+  if(!value){
+
+    toast('Digite uma categoria.');
+
+    return;
+
+  }
+
+  if(!cats.includes(value)){
+
+    cats.push(value);
+
+    toast('Categoria criada.');
+
+    openTool('categories');
+
+  }else{
+
+    toast('Essa categoria já existe.');
+
+  }
+
+}
+
+
+/* =========================
+   INICIAR
+========================= */
+
+loadProducts();
+
+</script>
+
+</body>
+</html>
