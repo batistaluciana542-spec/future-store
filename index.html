@@ -82,7 +82,68 @@ async function saveProduct(i){
  products[i][0]=name;products[i][1]=money(price);products[i][3]=category;render();toast('Produto salvo online!');
 }
 function addCategory(){const n=document.getElementById('newCat').value.trim();if(!n)return toast('Digite uma categoria.');if(!cats.includes(n)){cats.push(n);document.getElementById('chips').innerHTML=cats.map(c=>`<button class="chip ${c==='Todos'?'active':''}" onclick="setCat('${String(c).replace(/'/g,"\\'")}',this)">${c}</button>`).join('');toast('Categoria criada. Para atribuí-la, atualize a página e edite um produto.')}else toast('Essa categoria já existe.')}
-async function saveImage(){const i=+document.getElementById('imgProduct').value;const url=document.getElementById('imgUrl').value.trim();if(!url)return toast('Cole uma URL de imagem.');const p=products[i];const {data,error}=await db.functions.invoke('save-product',{body:{id:p._id,name:p[0],price:priceNumber(p[1]),description:p[2]||'',emoji:p[5]||'🛍️',image:url,category:p[3]||''},headers:{'x-admin-password':'1943'}});if(error||data?.error){toast('Erro ao salvar imagem: '+(data?.error||error?.message||'erro desconhecido'));return}products[i][4]=url;render();toast('Imagem salva online!')}
+async function uploadProductImage(){
+  const i=+document.getElementById('imgProduct').value;
+  const file=document.getElementById('imgFile').files[0];
+
+  if(!file){
+    toast('Escolha uma foto primeiro.');
+    return;
+  }
+
+  const p=products[i];
+
+  try{
+    const ext=file.name.split('.').pop().toLowerCase();
+    const fileName=`product-${p._id}-${Date.now()}.${ext}`;
+
+    const {error:uploadError}=await db.storage
+      .from('product-images')
+      .upload(fileName,file,{upsert:true});
+
+    if(uploadError) throw uploadError;
+
+    const {data}=db.storage
+      .from('product-images')
+      .getPublicUrl(fileName);
+
+    const imageUrl=data.publicUrl;
+
+    const {data:saveData,error:saveError}=await db.functions.invoke(
+      'smooth-handler',
+      {
+        body:{
+          id:p._id,
+          name:p[0],
+          price:priceNumber(p[1]),
+          description:p[5]||'',
+          emoji:p[2]||'🛍️',
+          image:imageUrl,
+          category:p[3]||''
+        },
+        headers:{
+          'x-admin-password':'1943'
+        }
+      }
+    );
+
+    if(saveError || saveData?.error){
+      throw new Error(
+        saveData?.error ||
+        saveError?.message ||
+        'Erro ao salvar o produto'
+      );
+    }
+
+    products[i][4]=imageUrl;
+    render();
+
+    toast('📷 Foto salva online!');
+  }catch(error){
+    console.error(error);
+    toast('Erro ao enviar foto: '+error.message);
+  }
+}
 function createCoupon(){const c=document.getElementById('coupon').value.trim();const d=document.getElementById('discount').value;if(!c||!d)return toast('Preencha o cupom e o desconto.');document.getElementById('couponResult').innerHTML='<div class="stat">Cupom <b>'+c+'</b> criado com '+d+'% de desconto.</div>';}
 function applyAppearance(){document.documentElement.style.setProperty('--a',document.getElementById('colorA').value);document.documentElement.style.setProperty('--b',document.getElementById('colorB').value);document.querySelector('.logo').innerHTML=document.getElementById('storeName').value+' <span>STORE</span>';toast('Aparência aplicada neste navegador.');}
 function saveSettings(){document.getElementById('count').style.display=document.getElementById('showCart').checked?'inline':'none';toast('Configurações salvas neste navegador.');}
